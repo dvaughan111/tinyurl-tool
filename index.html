@@ -84,6 +84,11 @@
             font-size: 13px;
             margin: 5px 0;
         }
+        /* Hidden textarea for fallback copy */
+        #copyHelper {
+            position: absolute;
+            left: -9999px;
+        }
     </style>
 </head>
 <body>
@@ -109,6 +114,9 @@
             Powered by TinyURL API
         </div>
     </div>
+    
+    <!-- Hidden textarea for fallback copy method -->
+    <textarea id="copyHelper" readonly></textarea>
 
     <script>
         // Global variable to store shortened URL
@@ -176,19 +184,51 @@
             const copyBtn = document.getElementById('copyBtn');
             const status = document.getElementById('status');
             
-            navigator.clipboard.writeText(currentShortUrl)
-                .then(() => {
-                    copyBtn.innerHTML = '✓ Copied!';
-                    status.textContent = '✓ URL copied to clipboard!';
+            // Try modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(currentShortUrl)
+                    .then(() => {
+                        copyBtn.innerHTML = '✓ Copied!';
+                        status.textContent = '✓ URL copied to clipboard!';
+                        
+                        setTimeout(() => {
+                            copyBtn.innerHTML = 'Copy Short URL';
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        // Modern API blocked, use fallback
+                        fallbackCopy();
+                    });
+            } else {
+                // Modern API not available, use fallback
+                fallbackCopy();
+            }
+            
+            function fallbackCopy() {
+                try {
+                    const copyHelper = document.getElementById('copyHelper');
+                    copyHelper.value = currentShortUrl;
+                    copyHelper.style.display = 'block';
+                    copyHelper.select();
+                    copyHelper.setSelectionRange(0, 99999);
                     
-                    // Reset button after 2 seconds
-                    setTimeout(() => {
-                        copyBtn.innerHTML = 'Copy Short URL';
-                    }, 2000);
-                })
-                .catch(err => {
-                    status.textContent = '✗ Copy failed: ' + err.message;
-                });
+                    const successful = document.execCommand('copy');
+                    copyHelper.style.display = 'none';
+                    
+                    if (successful) {
+                        copyBtn.innerHTML = '✓ Copied!';
+                        status.textContent = '✓ URL copied to clipboard!';
+                        
+                        setTimeout(() => {
+                            copyBtn.innerHTML = 'Copy Short URL';
+                        }, 2000);
+                    } else {
+                        status.textContent = 'Select the URL above and press Ctrl+C (or Cmd+C) to copy';
+                    }
+                } catch (err) {
+                    status.textContent = 'Select the URL above and press Ctrl+C (or Cmd+C) to copy';
+                }
+            }
         }
         
         function sendToJotForm(shortUrl, originalUrl) {
